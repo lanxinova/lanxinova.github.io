@@ -1,0 +1,77 @@
+name: Mirror public power-plant repositories to Gitee
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 1,7,13,19 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitee-public-mirror
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GITEE_USERNAME: lanxinova
+      GITEE_MIRROR_TOKEN: ${{ secrets.GITEE_MIRROR_TOKEN }}
+    steps:
+      - name: Check for Gitee credentials
+        id: credentials
+        shell: bash
+        run: |
+          if [ -z "$GITEE_MIRROR_TOKEN" ]; then
+            echo '::notice::GITEE_MIRROR_TOKEN not configured. No repositories will be modified.'
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync existing public Gitee mirrors
+        if: steps.credentials.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GIT_TERMINAL_PROMPT=0
+          cat > "$RUNNER_TEMP/gitee-askpass.sh" <<'ASKPASS'
+          #!/usr/bin/env bash
+          case "$1" in
+            *Username*) printf '%s\n' "$GITEE_USERNAME" ;;
+            *Password*) printf '%s\n' "$GITEE_MIRROR_TOKEN" ;;
+          esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/gitee-askpass.sh"
+          export GIT_ASKPASS="$RUNNER_TEMP/gitee-askpass.sh"
+          repositories=(
+            smart-power-plant
+            fuel-procurement
+            coal-transport-monitor
+            coal-quality-monitor
+            coal-yard-management
+            equipment-inspection
+            plant-safety
+            coal-unit-efficiency
+            emission-monitoring
+            gas-fuel-metering
+            gas-turbine-performance
+          )
+          for repo in "${repositories[@]}"; do
+            echo "::group::$repo"
+            target="https://gitee.com/${GITEE_USERNAME}/${repo}.git"
+            if ! git ls-remote --exit-code "$target" HEAD >/dev/null 2>&1; then
+              echo "::warning::Skipped $repo: create/import the matching public Gitee repository first, and confirm it is accessible."
+              echo '::endgroup::'
+              continue
+            fi
+            workdir="$(mktemp -d)"
+            git clone --bare --quiet "https://github.com/lanxinova/${repo}.git" "$workdir/repo.git"
+            git --git-dir="$workdir/repo.git" push --quiet "$target" --all
+            git --git-dir="$workdir/repo.git" push --quiet "$target" --tags
+            rm -rf "$workdir"
+            echo "Synced $repo branches and tags without force-pushing or deleting remote refs."
+            echo '::endgroup::'
+          done
