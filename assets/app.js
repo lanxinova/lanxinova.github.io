@@ -147,8 +147,15 @@
         link.href = project.detailUrl;
         detail.append(link);
       }
+      if (validWebLink(project.domesticUrl)) {
+        const link = node('a', 'project-link', '国内查看源码 · Gitee ↗');
+        link.href = project.domesticUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        detail.append(link);
+      }
       if (validWebLink(project.url)) {
-        const link = node('a', 'project-link', '查看项目 ↗');
+        const link = node('a', 'project-link', 'GitHub 主仓库 ↗');
         link.href = project.url;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
