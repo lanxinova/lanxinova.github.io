@@ -130,6 +130,7 @@ window.SITE_DATA = {
       visual: 'cyan',
       status: '软件原型 · 模拟场景',
       url: 'https://github.com/lanxinova/smart-power-plant',
+      domesticUrl: 'https://gitee.com/lanxinova/smart-power-plant',
       detailUrl: './power-plant.html'
     },
     {
